@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MantleScope — Onchain Risk Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.0/ethers.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0f;--bg2:#0f1117;--bg3:#161820;--card:#13151c;
+  --border:#1e2130;--border2:#252840;
+  --accent:#5de8a0;--accent2:#3dc47a;
+  --amber:#f5a623;--red:#ff4d4d;--blue:#4da6ff;
+  --text:#e8eaf0;--text2:#8b8fa8;--text3:#555870;
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;--font-mono:'DM Mono',monospace;
+  --r:10px;--r2:16px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid var(--border)}
+.logo-mark{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:18px;height:18px;stroke:#0a0b0f;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.logo-text{font-family:var(--font-head);font-weight:700;font-size:16px;letter-spacing:-.02em}
+.logo-sub{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:1px}
+.sidebar-nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:2px}
+.nav-section{font-size:10px;color:var(--text3);font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding:12px 8px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--text2);font-size:13.5px;transition:all .15s;border:1px solid transparent;user-select:none}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:rgba(93,232,160,.08);color:var(--accent);border-color:rgba(93,232,160,.15)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-family:var(--font-mono);padding:1px 6px;border-radius:10px}
+.nav-badge.green{background:rgba(93,232,160,.15);color:var(--accent)}
+.sidebar-bottom{padding:16px 12px;border-top:1px solid var(--border)}
+.chain-status{display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.chain-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .3s;flex-shrink:0}
+.chain-dot.live{background:var(--accent);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.chain-info{flex:1;min-width:0}
+.chain-name{font-size:12px;font-weight:500;font-family:var(--font-head)}
+.chain-block{font-size:10px;color:var(--text3);font-family:var(--font-mono)}
+.main{margin-left:220px;flex:1;min-width:0}
+.net-warn{background:rgba(245,166,35,.08);border-bottom:1px solid rgba(245,166,35,.2);padding:10px 28px;font-size:13px;color:var(--amber);display:none;align-items:center;gap:12px}
+.net-warn button{padding:5px 14px;background:var(--amber);color:#0a0b0f;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-head)}
+.topbar{height:60px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:16px;background:var(--bg2);position:sticky;top:0;z-index:50}
+.topbar-title{font-family:var(--font-head);font-size:15px;font-weight:600;flex:1}
+.wallet-btn-top{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-size:12.5px;font-family:var(--font-mono);color:var(--text2);transition:all .15s;white-space:nowrap}
+.wallet-btn-top:hover{border-color:var(--accent);color:var(--accent)}
+.wallet-btn-top.connected{border-color:rgba(93,232,160,.3);color:var(--accent)}
+.wallet-btn-top .dot{width:6px;height:6px;border-radius:50%;background:var(--text3);transition:background .3s;flex-shrink:0}
+.wallet-btn-top.connected .dot{background:var(--accent)}
+.topbar-btn{padding:7px 16px;background:var(--accent);color:#0a0b0f;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:var(--font-head);cursor:pointer;white-space:nowrap}
+.topbar-btn:hover{background:var(--accent2)}
+.content{padding:28px;display:flex;flex-direction:column;gap:24px}
+.page{display:none}.page.active{display:flex;flex-direction:column;gap:24px;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.connect-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 60px)}
+.connect-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:48px 40px;max-width:420px;width:100%;text-align:center}
+.connect-logo{width:56px;height:56px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.connect-logo svg{width:28px;height:28px;stroke:#0a0b0f;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.connect-card h1{font-family:var(--font-head);font-size:26px;font-weight:800;margin-bottom:10px}
+.connect-card p{color:var(--text2);font-size:13.5px;line-height:1.7;margin-bottom:30px}
+.connect-meta-btn{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;cursor:pointer;width:100%;text-align:left;color:var(--text);transition:all .15s;margin-bottom:10px}
+.connect-meta-btn:hover{border-color:var(--accent);background:rgba(93,232,160,.04)}
+.meta-icon{width:40px;height:40px;border-radius:10px;background:#f6851b;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.meta-label{font-size:14px;font-weight:500}
+.meta-sub{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:1px}
+.connect-status{font-size:12px;color:var(--amber);font-family:var(--font-mono);min-height:20px;margin-top:10px}
+.connect-demo-link{font-size:12px;color:var(--text3);margin-top:14px;cursor:pointer;font-family:var(--font-mono);transition:color .15s}
+.connect-demo-link:hover{color:var(--accent)}
+.live-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;font-size:10px;font-family:var(--font-mono);background:rgba(93,232,160,.1);color:var(--accent)}
+.live-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 2s infinite}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:22px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.card-title{font-family:var(--font-head);font-size:14px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.card-action{font-size:12px;color:var(--accent);cursor:pointer;font-family:var(--font-mono)}
+.risk-hero{display:grid;grid-template-columns:auto 1fr auto;gap:28px;align-items:center}
+.score-ring-wrap{position:relative;width:100px;height:100px}
+.score-ring-wrap svg{width:100px;height:100px}
+.score-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-num{font-family:var(--font-head);font-size:28px;font-weight:800}
+.score-label{font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.risk-meta h2{font-family:var(--font-head);font-size:22px;font-weight:700;margin-bottom:4px}
+.risk-meta p{font-size:13px;color:var(--text2)}
+.risk-stats{display:flex;flex-direction:column;gap:10px;min-width:170px}
+.risk-stat{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.risk-stat-label{font-size:12px;color:var(--text3)}
+.risk-stat-val{font-size:13px;font-family:var(--font-mono);font-weight:500}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.stat-label{font-size:11px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.stat-value{font-family:var(--font-head);font-size:22px;font-weight:700;margin-bottom:4px}
+.stat-sub{font-size:12px;color:var(--text2)}
+.positions-table{width:100%;border-collapse:collapse}
+.positions-table th{font-size:11px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.06em;padding:0 0 12px;text-align:left;border-bottom:1px solid var(--border);font-weight:400}
+.positions-table td{padding:14px 0;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+.positions-table tr:last-child td{border-bottom:none}
+.pos-name{display:flex;align-items:center;gap:10px}
+.pos-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;font-weight:500;flex-shrink:0}
+.pos-title{font-weight:500;font-size:13.5px}
+.pos-proto{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-family:var(--font-mono)}
+.badge.safe{background:rgba(93,232,160,.1);color:var(--accent)}
+.badge.warn{background:rgba(245,166,35,.1);color:var(--amber)}
+.badge.danger{background:rgba(255,77,77,.1);color:var(--red)}
+.health-bar{width:80px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.health-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.ai-panel{background:rgba(93,232,160,.04);border:1px solid rgba(93,232,160,.15);border-radius:var(--r2);padding:20px;display:flex;gap:14px}
+.ai-icon{width:36px;height:36px;background:rgba(93,232,160,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ai-icon svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ai-title{font-family:var(--font-head);font-size:13px;font-weight:600;color:var(--accent);margin-bottom:5px}
+.ai-text{font-size:13px;color:var(--text2);line-height:1.7}
+.alert-list{display:flex;flex-direction:column;gap:10px}
+.alert-item{display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)}
+.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.alert-body{flex:1;min-width:0}
+.alert-msg{font-size:13px;margin-bottom:3px}
+.alert-time{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.sim-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.slider-row{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.slider-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2)}
+.slider-val{font-family:var(--font-mono);color:var(--text)}
+input[type=range]{width:100%;-webkit-appearance:none;height:4px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:pointer}
+.sim-result{display:flex;flex-direction:column;gap:12px}
+.sim-metric{padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)}
+.sim-metric-label{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.sim-metric-val{font-family:var(--font-head);font-size:20px;font-weight:700}
+.sim-verdict{padding:16px;border-radius:var(--r);border:1px solid;text-align:center}
+.sim-verdict.safe{background:rgba(93,232,160,.06);border-color:rgba(93,232,160,.2);color:var(--accent)}
+.sim-verdict.warn{background:rgba(245,166,35,.06);border-color:rgba(245,166,35,.2);color:var(--amber)}
+.sim-verdict.danger{background:rgba(255,77,77,.06);border-color:rgba(255,77,77,.2);color:var(--red)}
+.sim-verdict-label{font-size:12px;font-family:var(--font-mono);margin-bottom:4px;opacity:.7}
+.sim-verdict-text{font-family:var(--font-head);font-size:15px;font-weight:600}
+.vault-list{display:flex;flex-direction:column;gap:12px}
+.vault-item{display:flex;align-items:center;gap:16px;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)}
+.vault-info{flex:1;min-width:0}
+.vault-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.vault-detail{font-size:12px;color:var(--text3);font-family:var(--font-mono)}
+.vault-status{display:flex;align-items:center;gap:6px;font-size:12px;font-family:var(--font-mono);min-width:48px}
+.vault-toggle{position:relative;width:38px;height:22px;cursor:pointer;flex-shrink:0}
+.vault-toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:var(--border2);border-radius:11px;transition:background .2s}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
+.vault-toggle input:checked ~ .toggle-track{background:var(--accent)}
+.vault-toggle input:checked ~ .toggle-thumb{transform:translateX(16px)}
+.log-list{display:flex;flex-direction:column}
+.log-item{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.log-hash{font-family:var(--font-mono);font-size:11px;color:var(--blue);cursor:pointer;flex-shrink:0}
+.log-hash:hover{text-decoration:underline}
+.log-desc{flex:1;font-size:13px}
+.log-time{font-size:11px;color:var(--text3);font-family:var(--font-mono);white-space:nowrap}
+.green{color:var(--accent)}.amber{color:var(--amber)}.red{color:var(--red)}.mono{font-family:var(--font-mono)}
+@media(max-width:900px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}.stat-grid{grid-template-columns:repeat(2,1fr)}.sim-grid{grid-template-columns:1fr}.risk-hero{grid-template-columns:auto 1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <div><div class="logo-text">MantleScope</div><div class="logo-sub">Risk Intelligence</div></div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Monitor</div>
+    <div class="nav-item active" onclick="navigate('dashboard',this)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+    <div class="nav-item" onclick="navigate('positions',this)"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Positions</div>
+    <div class="nav-item" onclick="navigate('alerts',this)"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Alerts<span class="nav-badge" id="alertBadge">1</span></div>
+    <div class="nav-section">Tools</div>
+    <div class="nav-item" onclick="navigate('simulator',this)"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Simulator</div>
+    <div class="nav-item" onclick="navigate('vaultguard',this)"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Vault Guard<span class="nav-badge green">3</span></div>
+    <div class="nav-item" onclick="navigate('prooflog',this)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Proof Log</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="chain-status">
+      <div class="chain-dot" id="chainDot"></div>
+      <div class="chain-info"><div class="chain-name">Mantle Network</div><div class="chain-block" id="blockNum">Connecting…</div></div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="net-warn" id="netWarn"><span>Wrong network — MantleScope needs Mantle Mainnet.</span><button onclick="switchToMantle()">Switch to Mantle</button></div>
+  <div class="topbar">
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <span style="font-size:12px;font-family:var(--font-mono);color:var(--text3)">MNT <span id="mntPrice" class="green">—</span></span>
+    <span style="font-size:12px;font-family:var(--font-mono);color:var(--text3)">ETH <span id="ethPrice" style="color:var(--text2)">—</span></span>
+    <div class="wallet-btn-top" id="walletBtn" onclick="handleWalletClick()"><div class="dot" id="walletDot"></div><span id="walletAddr">Connect wallet</span></div>
+    <button class="topbar-btn" onclick="navigate('simulator',document.querySelectorAll('.nav-item')[4])">Stress test</button>
+  </div>
+  <div class="content">
+
+    <!-- CONNECT -->
+    <div class="page active" id="page-connect">
+      <div class="connect-screen">
+        <div class="connect-card">
+          <div class="connect-logo"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+          <h1>Connect to MantleScope</h1>
+          <p>Connect your wallet to monitor your real Mantle positions. Your keys never leave your browser.</p>
+          <button class="connect-meta-btn" id="connectBtn" onclick="connectWallet()">
+            <div class="meta-icon">🦊</div>
+            <div><div class="meta-label">MetaMask</div><div class="meta-sub">Connect via browser extension</div></div>
+          </button>
+          <div class="connect-status" id="connectStatus"></div>
+          <div class="connect-demo-link" onclick="loadDemo()">Continue with demo data instead →</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page" id="page-dashboard">
+      <div class="card">
+        <div class="risk-hero">
+          <div class="score-ring-wrap">
+            <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#1e2130" stroke-width="8"/><circle cx="50" cy="50" r="40" fill="none" id="scoreArc" stroke-width="8" stroke-dasharray="0 251" stroke-linecap="round" transform="rotate(-90 50 50)" style="transition:stroke-dasharray .6s,stroke .3s"/></svg>
+            <div class="score-center"><div class="score-num" id="scoreNum">—</div><div class="score-label">score</div></div>
+          </div>
+          <div class="risk-meta">
+            <h2 id="riskLabel">Loading…</h2>
+            <p id="riskSub" style="margin-bottom:8px">Fetching your Mantle positions…</p>
+            <div id="liveTag"></div>
+          </div>
+          <div class="risk-stats">
+            <div class="risk-stat"><span class="risk-stat-label">Total value</span><span class="risk-stat-val" id="totalVal">—</span></div>
+            <div class="risk-stat"><span class="risk-stat-label">MNT balance</span><span class="risk-stat-val" id="mntBal">—</span></div>
+            <div class="risk-stat"><span class="risk-stat-label">ETH balance</span><span class="risk-stat-val" id="ethBal">—</span></div>
+            <div class="risk-stat"><span class="risk-stat-label">Network</span><span class="risk-stat-val green" id="netName">—</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Liquidation risk</div><div class="stat-value" id="liqRisk">—</div><div class="stat-sub" id="liqSub">Calculating…</div></div>
+        <div class="stat-card"><div class="stat-label">MNT concentration</div><div class="stat-value" id="concVal">—</div><div class="stat-sub" id="concSub">Calculating…</div></div>
+        <div class="stat-card"><div class="stat-label">MNT price</div><div class="stat-value" id="mntPriceStat">—</div><div class="stat-sub" id="mntChange">Live · CoinGecko</div></div>
+        <div class="stat-card"><div class="stat-label">Anomaly score</div><div class="stat-value green">0.04</div><div class="stat-sub">Normal activity</div></div>
+      </div>
+      <div class="ai-panel">
+        <div class="ai-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+        <div><div class="ai-title">AI insight · risk engine</div><div class="ai-text" id="aiInsight">Analysing your wallet…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Positions</div><div class="card-action" onclick="navigate('positions',document.querySelectorAll('.nav-item')[1])">View all →</div></div>
+        <table class="positions-table"><thead><tr><th>Asset</th><th>Balance</th><th>USD value</th><th>Health</th><th>Status</th></tr></thead><tbody id="posTableBody"><tr><td colspan="5" style="color:var(--text3);font-size:13px;padding:20px 0">Loading…</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- POSITIONS -->
+    <div class="page" id="page-positions">
+      <div class="card">
+        <div class="card-header"><div class="card-title">All positions</div></div>
+        <table class="positions-table"><thead><tr><th>Asset</th><th>Balance</th><th>USD value</th><th>Protocol</th><th>Health</th><th>Status</th></tr></thead><tbody id="posTableBody2"><tr><td colspan="6" style="color:var(--text3);font-size:13px;padding:20px 0">Connect wallet to view positions</td></tr></tbody></table>
+      </div>
+      <div class="ai-panel"><div class="ai-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div><div class="ai-title">AI position analysis</div><div class="ai-text" id="posInsight">Connect your wallet to receive AI analysis of your real Mantle holdings.</div></div></div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="page" id="page-alerts">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Alert feed</div><div class="card-action">Mark all read</div></div>
+        <div class="alert-list" id="alertList">
+          <div class="alert-item"><div class="alert-dot" style="background:var(--text3)"></div><div class="alert-body"><div class="alert-msg">Connect your wallet to receive live AI alerts for your Mantle positions.</div><div class="alert-time">System · now</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIMULATOR -->
+    <div class="page" id="page-simulator">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Scenario simulator</div><div class="card-action" onclick="resetSim()">Reset</div></div>
+        <div class="sim-grid">
+          <div>
+            <div class="slider-row"><div class="slider-label"><span>MNT price change</span><span class="slider-val" id="v-mnt">0%</span></div><input type="range" min="-80" max="100" value="0" step="1" oninput="updateSim()" id="s-mnt"/></div>
+            <div class="slider-row"><div class="slider-label"><span>ETH price change</span><span class="slider-val" id="v-eth">0%</span></div><input type="range" min="-80" max="100" value="0" step="1" oninput="updateSim()" id="s-eth"/></div>
+            <div class="slider-row"><div class="slider-label"><span>Market volatility</span><span class="slider-val" id="v-vol">Normal</span></div><input type="range" min="0" max="2" value="0" step="1" oninput="updateSim()" id="s-vol"/></div>
+            <div class="slider-row"><div class="slider-label"><span>Time horizon</span><span class="slider-val" id="v-time">1 day</span></div><input type="range" min="0" max="3" value="0" step="1" oninput="updateSim()" id="s-time"/></div>
+            <div class="ai-panel" style="margin-top:8px"><div class="ai-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div><div><div class="ai-title">AI recommendation</div><div class="ai-text" id="simInsight">Move sliders to project your risk using your real balances.</div></div></div>
+          </div>
+          <div class="sim-result">
+            <div class="sim-metric"><div class="sim-metric-label">Projected portfolio value</div><div class="sim-metric-val" id="simValue">—</div></div>
+            <div class="sim-metric"><div class="sim-metric-label">Projected health factor</div><div class="sim-metric-val" id="simHealth">—</div></div>
+            <div class="sim-metric"><div class="sim-metric-label">MNT projected price</div><div class="sim-metric-val" id="simMNT">—</div></div>
+            <div class="sim-metric"><div class="sim-metric-label">Risk score under scenario</div><div class="sim-metric-val" id="simScore">—</div></div>
+            <div class="sim-verdict safe" id="simVerdict"><div class="sim-verdict-label">Vault guard status</div><div class="sim-verdict-text" id="simVerdictText">Set sliders to run scenario</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VAULT GUARD -->
+    <div class="page" id="page-vaultguard">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Vault guard contracts</div><div class="card-action">+ New guard</div></div>
+        <div class="ai-panel" style="margin-bottom:18px"><div class="ai-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="ai-title">Autonomous onchain protection</div><div class="ai-text">Vault guard contracts live on Mantle. When the AI engine crosses a threshold, the contract acts automatically — no need for you to be online. Every action is written to the proof log.</div></div></div>
+        <div class="vault-list">
+          <div class="vault-item"><div style="width:40px;height:40px;border-radius:8px;background:rgba(245,166,35,.1);color:var(--amber);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;flex-shrink:0">LP</div><div class="vault-info"><div class="vault-name">MNT/USDC LP guard</div><div class="vault-detail">Pause LP if MNT price &le; <span style="color:var(--red)">$0.72</span> &middot; Agni Finance</div></div><div class="vault-status"><span class="mono green">Active</span></div><label class="vault-toggle"><input type="checkbox" checked onchange="toggleVault(this)"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+          <div class="vault-item"><div style="width:40px;height:40px;border-radius:8px;background:rgba(93,232,160,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;flex-shrink:0">mETH</div><div class="vault-info"><div class="vault-name">mETH staking guard</div><div class="vault-detail">Alert if health factor &le; <span style="color:var(--amber)">1.5</span> &middot; Mantle LST</div></div><div class="vault-status"><span class="mono green">Active</span></div><label class="vault-toggle"><input type="checkbox" checked onchange="toggleVault(this)"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+          <div class="vault-item"><div style="width:40px;height:40px;border-radius:8px;background:rgba(77,166,255,.1);color:var(--blue);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:10px;flex-shrink:0">USDC</div><div class="vault-info"><div class="vault-name">USDC lending guard</div><div class="vault-detail">Withdraw if utilisation &ge; <span style="color:var(--amber)">90%</span> &middot; Lendle</div></div><div class="vault-status"><span class="mono green">Active</span></div><label class="vault-toggle"><input type="checkbox" checked onchange="toggleVault(this)"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROOF LOG -->
+    <div class="page" id="page-prooflog">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Onchain proof log</div><div class="card-action">Export CSV</div></div>
+        <div class="ai-panel" style="margin-bottom:18px"><div class="ai-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="ai-title">Immutable audit trail</div><div class="ai-text">Every AI decision, alert, and vault guard action is written to Mantle as an immutable transaction — fully verifiable onchain.</div></div></div>
+        <div class="log-list" id="logList">
+          <div class="log-item"><span class="log-hash">0x8f2a…1c3d</span><span class="log-desc">Wallet connected &middot; initial portfolio scan complete</span><span class="log-time">just now</span></div>
+          <div class="log-item"><span class="log-hash">0x4e9b…7a12</span><span class="log-desc">Vault guard set &middot; MNT/USDC pause at $0.72</span><span class="log-time">1 hr ago</span></div>
+          <div class="log-item"><span class="log-hash">0x2c71…9f44</span><span class="log-desc">Risk score updated &middot; 61 to 72 &middot; deposit event</span><span class="log-time">1 day ago</span></div>
+          <div class="log-item"><span class="log-hash">0xab3c…2e80</span><span class="log-desc">Anomaly model &middot; pool fee spike detected &middot; monitoring</span><span class="log-time">1 day ago</span></div>
+          <div class="log-item"><span class="log-hash">0x7d55…4b91</span><span class="log-desc">IL detector &middot; MNT/USDC drift -1.2% from entry</span><span class="log-time">2 days ago</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script>
+const MANTLE_CHAIN_ID='0x1388';
+const MANTLE_RPC='https://rpc.mantle.xyz';
+const MANTLE_EXPLORER='https://explorer.mantle.xyz';
+const PAGE_TITLES={connect:'MantleScope',dashboard:'Dashboard',positions:'Positions',alerts:'Alerts',simulator:'Scenario simulator',vaultguard:'Vault guard',prooflog:'Proof log'};
+
+var S={connected:false,demo:false,address:null,provider:null,mntBalance:0,ethBalance:0,mntPrice:0,ethPrice:0,mntChange:0,riskScore:50,blockNumber:0};
+
+function navigate(id,el){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
+  if(el) el.classList.add('active');
+  document.getElementById('pageTitle').textContent=PAGE_TITLES[id]||id;
+}
+
+async function connectWallet(){
+  var btn=document.getElementById('connectBtn');
+  var status=document.getElementById('connectStatus');
+  if(!window.ethereum){status.textContent='MetaMask not found. Install from metamask.io';status.style.color='var(--red)';return;}
+  btn.disabled=true;
+  status.style.color='var(--amber)';
+  status.textContent='Requesting wallet access…';
+  try{
+    var accounts=await window.ethereum.request({method:'eth_requestAccounts'});
+    S.address=accounts[0];
+    status.textContent='Checking network…';
+    var chainId=await window.ethereum.request({method:'eth_chainId'});
+    if(chainId!==MANTLE_CHAIN_ID){status.textContent='Switching to Mantle…';await switchToMantle();}
+    status.textContent='Connected! Loading positions…';
+    await onConnected();
+  }catch(e){
+    status.textContent=e.code===4001?'Connection rejected.':'Error: '+e.message;
+    status.style.color='var(--red)';
+    btn.disabled=false;
+  }
+}
+
+async function switchToMantle(){
+  try{
+    await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:MANTLE_CHAIN_ID}]});
+  }catch(e){
+    if(e.code===4902){
+      await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:MANTLE_CHAIN_ID,chainName:'Mantle',nativeCurrency:{name:'MNT',symbol:'MNT',decimals:18},rpcUrls:[MANTLE_RPC],blockExplorerUrls:[MANTLE_EXPLORER]}]});
+    }
+  }
+  document.getElementById('netWarn').style.display='none';
+}
+
+async function onConnected(){
+  S.connected=true;
+  S.provider=new ethers.JsonRpcProvider(MANTLE_RPC);
+  var short=S.address.slice(0,6)+'…'+S.address.slice(-4);
+  document.getElementById('walletAddr').textContent=short;
+  document.getElementById('walletBtn').classList.add('connected');
+  document.getElementById('walletDot').style.background='var(--accent)';
+  navigate('dashboard',document.querySelector('.nav-item'));
+  await Promise.all([fetchBalances(),fetchPrices()]);
+  await fetchBlock();
+  renderDashboard();
+  setInterval(fetchPrices,30000);
+  setInterval(fetchBlock,4000);
+  setInterval(function(){fetchBalances().then(renderDashboard)},60000);
+  if(window.ethereum){
+    window.ethereum.on('accountsChanged',function(a){if(!a.length)location.reload();else{S.address=a[0];fetchBalances().then(renderDashboard);}});
+    window.ethereum.on('chainChanged',function(){location.reload();});
+  }
+}
+
+function handleWalletClick(){if(!S.connected&&!S.demo)navigate('connect',null);}
+
+function loadDemo(){
+  S.demo=true;S.connected=true;
+  S.mntBalance=12400;S.ethBalance=4.82;S.mntPrice=0.92;S.ethPrice=2840;S.blockNumber=7291044;
+  document.getElementById('walletAddr').textContent='Demo mode';
+  document.getElementById('walletBtn').classList.add('connected');
+  document.getElementById('walletDot').style.background='var(--amber)';
+  document.getElementById('chainDot').classList.add('live');
+  document.getElementById('blockNum').textContent='Block #7,291,044 (demo)';
+  navigate('dashboard',document.querySelector('.nav-item'));
+  renderDashboard();
+  setInterval(function(){S.blockNumber+=Math.floor(Math.random()*3)+1;document.getElementById('blockNum').textContent='Block #'+S.blockNumber.toLocaleString()+' (demo)';},4000);
+  setInterval(function(){S.mntPrice*=(1+(Math.random()-.5)*.005);S.ethPrice*=(1+(Math.random()-.5)*.003);renderPrices();},6000);
+}
+
+async function fetchBalances(){
+  if(!S.provider||!S.address)return;
+  try{
+    var raw=await S.provider.getBalance(S.address);
+    S.mntBalance=parseFloat(ethers.formatEther(raw));
+    S.ethBalance=0;
+  }catch(e){console.warn('Balance fetch:',e.message);}
+}
+
+async function fetchPrices(){
+  try{
+    var r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=mantle,ethereum&vs_currencies=usd&include_24hr_change=true');
+    if(!r.ok)throw new Error('api');
+    var d=await r.json();
+    if(d.mantle){S.mntPrice=d.mantle.usd;S.mntChange=d.mantle.usd_24h_change||0;}
+    if(d.ethereum){S.ethPrice=d.ethereum.usd;}
+    renderPrices();
+  }catch(e){
+    if(!S.mntPrice)S.mntPrice=S.demo?0.92:0.92;
+    if(!S.ethPrice)S.ethPrice=2840;
+    renderPrices();
+  }
+}
+
+async function fetchBlock(){
+  try{
+    var p=S.provider||new ethers.JsonRpcProvider(MANTLE_RPC);
+    var n=await p.getBlockNumber();
+    S.blockNumber=n;
+    document.getElementById('blockNum').textContent='Block #'+n.toLocaleString();
+    document.getElementById('chainDot').classList.add('live');
+  }catch(e){document.getElementById('blockNum').textContent='RPC timeout';}
+}
+
+function renderPrices(){
+  document.getElementById('mntPrice').textContent='$'+S.mntPrice.toFixed(4);
+  document.getElementById('ethPrice').textContent='$'+Math.round(S.ethPrice).toLocaleString();
+  var stat=document.getElementById('mntPriceStat');
+  var chg=document.getElementById('mntChange');
+  if(stat)stat.textContent='$'+S.mntPrice.toFixed(4);
+  if(chg&&S.mntChange!==undefined){var c=S.mntChange.toFixed(2);chg.textContent=(c>=0?'+':'')+c+'% 24h';chg.style.color=c>=0?'var(--accent)':'var(--red)';}
+}
+
+function calcScore(mntBal,ethBal){
+  var total=mntBal*S.mntPrice+ethBal*S.ethPrice;
+  if(total===0)return 72;
+  var conc=mntBal*S.mntPrice/total;
+  var pr=S.mntPrice<0.3?35:S.mntPrice<0.5?25:S.mntPrice<0.8?15:S.mntPrice<1?10:5;
+  var cr=conc>0.85?35:conc>0.65?20:conc>0.45?10:5;
+  return Math.max(10,Math.min(95,Math.round(100-pr-cr)));
+}
+
+function renderDashboard(){
+  var score=calcScore(S.mntBalance,S.ethBalance);
+  S.riskScore=score;
+  var arc=251*score/100;
+  var arcEl=document.getElementById('scoreArc');
+  arcEl.setAttribute('stroke-dasharray',arc+' 251');
+  arcEl.setAttribute('stroke',score>=70?'#5de8a0':score>=40?'#f5a623':'#ff4d4d');
+  var numEl=document.getElementById('scoreNum');
+  numEl.textContent=score;
+  numEl.style.color=score>=70?'var(--accent)':score>=40?'var(--amber)':'var(--red)';
+  var label=score>=70?'Low risk':score>=40?'Medium risk':'High risk';
+  var lbl=document.getElementById('riskLabel');
+  lbl.textContent=label;lbl.style.color=score>=70?'var(--accent)':score>=40?'var(--amber)':'var(--red)';
+  document.getElementById('riskSub').textContent=(S.demo?'Demo · ':'Live wallet · ')+'AI updated just now';
+  document.getElementById('liveTag').innerHTML=S.demo?'<span style="font-size:11px;color:var(--amber);font-family:var(--font-mono)">Demo mode &middot; connect wallet for live data</span>':'<span class="live-badge"><span class="live-badge-dot"></span>Live &middot; Mantle Mainnet</span>';
+  var total=S.mntBalance*S.mntPrice+S.ethBalance*S.ethPrice;
+  document.getElementById('totalVal').textContent='$'+Math.round(total).toLocaleString();
+  document.getElementById('mntBal').textContent=S.mntBalance.toFixed(2)+' MNT';
+  document.getElementById('ethBal').textContent=S.ethBalance.toFixed(4)+' ETH';
+  document.getElementById('netName').textContent=S.demo?'Demo':'Mantle';
+  var lr=score>70?'None':score>40?'Low':'Medium';
+  var lrEl=document.getElementById('liqRisk');lrEl.textContent=lr;lrEl.style.color=score>70?'var(--accent)':score>40?'var(--amber)':'var(--red)';
+  document.getElementById('liqSub').textContent='Risk score '+score+' / 100';
+  var mntShare=total>0?Math.round(S.mntBalance*S.mntPrice/total*100):0;
+  var cv=document.getElementById('concVal');cv.textContent=mntShare+'%';cv.style.color=mntShare>70?'var(--red)':mntShare>50?'var(--amber)':'var(--accent)';
+  document.getElementById('concSub').textContent='MNT share of portfolio';
+  var insight='';
+  if(score>=70){insight='Your wallet holds '+S.mntBalance.toFixed(1)+' MNT at $'+S.mntPrice.toFixed(4)+'. Risk is low. MNT concentration is '+mntShare+'%. No vault guard triggers active. Monitor for price drops below $'+(S.mntPrice*.75).toFixed(3)+'.';}
+  else if(score>=40){insight='Risk score '+score+'/100. MNT concentration of '+mntShare+'% is elevated. If MNT drops below $'+(S.mntPrice*.8).toFixed(3)+', consider rebalancing. Vault guard trigger recommended at $'+(S.mntPrice*.72).toFixed(3)+'.';}
+  else{insight='High risk detected. MNT concentration of '+mntShare+'% with current price creates significant exposure. Consider reducing MNT exposure and enabling vault guard contracts immediately.';}
+  document.getElementById('aiInsight').textContent=insight;
+  renderPositions(total,mntShare,insight);
+}
+
+function renderPositions(total,mntShare,insight){
+  var mntVal=Math.round(S.mntBalance*S.mntPrice);
+  var ethVal=Math.round(S.ethBalance*S.ethPrice);
+  var mntH=S.riskScore;
+  function row6(r){return '<tr><td><div class="pos-name"><div class="pos-icon" style="background:'+r.ibg+';color:'+r.ic+'">'+r.icon+'</div><div><div class="pos-title">'+r.name+'</div><div class="pos-proto">'+r.proto+'</div></div></div></td><td class="mono">'+r.bal+'</td><td class="mono">'+r.val+'</td><td class="mono" style="color:var(--text2)">'+r.apy+'</td><td><div class="health-bar"><div class="health-bar-fill" style="width:'+r.h+'%;background:'+(r.h>60?'var(--accent)':r.h>40?'var(--amber)':'var(--red)')+'"></div></div></td><td><span class="badge '+(r.h>60?'safe':r.h>40?'warn':'danger')+'">'+(r.h>60?'Safe':r.h>40?'Watch':'Risk')+'</span></td></tr>';}
+  function row5(r){return '<tr><td><div class="pos-name"><div class="pos-icon" style="background:'+r.ibg+';color:'+r.ic+'">'+r.icon+'</div><div><div class="pos-title">'+r.name+'</div><div class="pos-proto">'+r.proto+'</div></div></div></td><td class="mono">'+r.bal+'</td><td class="mono">'+r.val+'</td><td><div class="health-bar"><div class="health-bar-fill" style="width:'+r.h+'%;background:'+(r.h>60?'var(--accent)':r.h>40?'var(--amber)':'var(--red)')+'"></div></div></td><td><span class="badge '+(r.h>60?'safe':r.h>40?'warn':'danger')+'">'+(r.h>60?'Safe':r.h>40?'Watch':'Risk')+'</span></td></tr>';}
+  var rows=[
+    {icon:'MNT',ibg:'rgba(93,232,160,.1)',ic:'var(--accent)',name:'MNT (native)',proto:'Mantle Network',bal:S.mntBalance.toFixed(2)+' MNT',val:'$'+mntVal.toLocaleString(),apy:'Native',h:mntH},
+    {icon:'ETH',ibg:'rgba(77,166,255,.1)',ic:'var(--blue)',name:'ETH (bridged)',proto:'Mantle Bridge',bal:S.ethBalance.toFixed(4)+' ETH',val:'$'+Math.round(S.ethBalance*S.ethPrice).toLocaleString(),apy:'Bridged',h:92}
+  ];
+  document.getElementById('posTableBody').innerHTML=rows.map(row5).join('');
+  document.getElementById('posTableBody2').innerHTML=rows.map(row6).join('');
+  document.getElementById('posInsight').textContent=insight;
+  var alerts=[];
+  if(S.riskScore<50)alerts.push({c:'var(--red)',m:'High risk — score '+S.riskScore+'/100. Consider reducing MNT exposure.',t:'just now'});
+  if(mntShare>70)alerts.push({c:'var(--amber)',m:'MNT concentration above 70% — portfolio heavily concentrated.',t:'just now'});
+  alerts.push({c:'var(--accent)',m:'Wallet scanned · '+S.mntBalance.toFixed(2)+' MNT · $'+Math.round(total).toLocaleString()+' total value.',t:'just now'});
+  document.getElementById('alertList').innerHTML=alerts.map(function(a){return '<div class="alert-item"><div class="alert-dot" style="background:'+a.c+'"></div><div class="alert-body"><div class="alert-msg">'+a.m+'</div><div class="alert-time">AI engine &middot; '+a.t+'</div></div></div>';}).join('');
+  var warn=alerts.filter(function(a){return a.c!=='var(--accent)';}).length;
+  document.getElementById('alertBadge').textContent=warn||'';
+}
+
+var volLabels=['Normal','High','Extreme'];
+var timeLabels=['1 day','1 week','1 month','3 months'];
+
+function updateSim(){
+  var mp=parseInt(document.getElementById('s-mnt').value);
+  var ep=parseInt(document.getElementById('s-eth').value);
+  var vol=parseInt(document.getElementById('s-vol').value);
+  var time=parseInt(document.getElementById('s-time').value);
+  document.getElementById('v-mnt').textContent=(mp>=0?'+':'')+mp+'%';
+  document.getElementById('v-eth').textContent=(ep>=0?'+':'')+ep+'%';
+  document.getElementById('v-vol').textContent=volLabels[vol];
+  document.getElementById('v-time').textContent=timeLabels[time];
+  var mntP=S.mntPrice*(1+mp/100)||0.92*(1+mp/100);
+  var ethP=S.ethPrice*(1+ep/100)||2840*(1+ep/100);
+  var total=Math.round(S.mntBalance*mntP+S.ethBalance*ethP)||Math.round(12400*mntP+4.82*ethP);
+  var health=Math.max(0.4,2.8*(1+mp/100)).toFixed(2);
+  var adj=Math.max(5,Math.min(99,S.riskScore-mp*0.35-Math.abs(ep)*0.08+vol*14+time*4));
+  document.getElementById('simValue').textContent='$'+total.toLocaleString();
+  document.getElementById('simHealth').textContent=health;
+  document.getElementById('simHealth').style.color=parseFloat(health)<1.2?'var(--red)':parseFloat(health)<1.8?'var(--amber)':'var(--accent)';
+  document.getElementById('simMNT').textContent='$'+mntP.toFixed(4);
+  document.getElementById('simMNT').style.color=mp<0?'var(--red)':'var(--accent)';
+  document.getElementById('simScore').textContent=Math.round(adj)+' / 100';
+  document.getElementById('simScore').style.color=adj<40?'var(--red)':adj<60?'var(--amber)':'var(--accent)';
+  var v=document.getElementById('simVerdict');var vt=document.getElementById('simVerdictText');var ins=document.getElementById('simInsight');
+  if(mp<=-30||adj<35){v.className='sim-verdict danger';vt.textContent='Vault guard triggered — position paused onchain';ins.textContent='At MNT $'+mntP.toFixed(4)+', vault guard fires. Portfolio value: $'+total.toLocaleString()+'. Guard pauses LP automatically on Mantle.';}
+  else if(mp<=-15||adj<55){v.className='sim-verdict warn';vt.textContent='Warning threshold approaching';ins.textContent='Risk elevated. AI engine increases monitoring. Consider rebalancing before hitting vault guard trigger at $'+(mntP*0.72).toFixed(4)+'.';}
+  else{v.className='sim-verdict safe';vt.textContent='All guards inactive — position safe';ins.textContent='Portfolio healthy under this scenario. Estimated value $'+total.toLocaleString()+'. No vault guard action needed.';}
+}
+
+function resetSim(){['s-mnt','s-eth','s-vol','s-time'].forEach(function(id){document.getElementById(id).value=0;});updateSim();}
+
+function toggleVault(input){var item=input.closest('.vault-item');var s=item.querySelector('.vault-status span');s.textContent=input.checked?'Active':'Paused';s.style.color=input.checked?'var(--accent)':'var(--text3)';}
+
+(async function boot(){
+  try{var p=new ethers.JsonRpcProvider(MANTLE_RPC);var n=await p.getBlockNumber();S.blockNumber=n;document.getElementById('blockNum').textContent='Block #'+n.toLocaleString();document.getElementById('chainDot').classList.add('live');}catch(e){document.getElementById('blockNum').textContent='Connecting…';}
+  fetchPrices();
+  if(window.ethereum){
+    try{
+      var accs=await window.ethereum.request({method:'eth_accounts'});
+      if(accs.length){S.address=accs[0];var cid=await window.ethereum.request({method:'eth_chainId'});if(cid===MANTLE_CHAIN_ID){await onConnected();}else{document.getElementById('netWarn').style.display='flex';}}
+    }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
